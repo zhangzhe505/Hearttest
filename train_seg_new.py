@@ -172,7 +172,7 @@ optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
 #--------------------------------------------------------------------------------------
 
-train_model(model, train_loader, val_loader, num_epochs, device, save_path)
+train_model(model, train_loader, val_loader, num_epochs, device, save_path, save_log_path)
 
 # 验证阶段：计算每类 Dice Score
 class_dice_scores = evaluate_per_class_dice(model, val_loader, num_classes, device)
