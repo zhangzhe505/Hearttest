@@ -157,7 +157,7 @@ input_channels = 1
 # eg:save_path = "unet_new_model.pth"
 # eg:save_log_path = "unet_new_log.csv"
 save_path = "unet_new_model.pth"
-save_log_path = "unet_new_log.csv"
+save_log_path = "logs/unet_new_log.csv"
 
 model = UNet(in_channels=input_channels, num_classes=num_classes).to(device)
 # model = ViT(img_size=512, patch_size=32, hidden_dim=768, num_classes=4)
