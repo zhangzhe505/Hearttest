@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import torch
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 if torch.cuda.is_available():
     device = torch.device("cuda")  # 设置设备为 CUDA
     gpu_index = torch.cuda.current_device()  # 获取当前 GPU 索引
@@ -140,11 +140,11 @@ def evaluate_per_class_dice(model, data_loader, n_classes, device):
 #--------------------------------------------------------------------------------------
 
 learning_rate = 1e-3
-num_epochs = 1
+num_epochs = 100
 # Create data loaders
 train_loader, val_loader, test_loader = create_data(
     ["OpenDatasets", "OpenDatasets"],
-    '/Users/zhangzhe/PycharmProjects/data/OpenDataset',
+    '/data3/zhangzhe/data/OpenDataset',
     (256, 256),
     4,
     0.6,
@@ -155,9 +155,9 @@ num_classes = 4
 input_channels = 1
 
 # eg:save_path = "unet_new_model.pth"
-# eg:save_log_path = "unet_new_log.csv"
+# eg:save_log_path = "logs/unet_new_log.csv"
 save_path = "unet_new_model.pth"
-save_log_path = "unet_new_log.csv"
+save_log_path = "logs/unet_new_log.csv"
 
 model = UNet(in_channels=input_channels, num_classes=num_classes).to(device)
 # model = ViT(img_size=512, patch_size=32, hidden_dim=768, num_classes=4)
@@ -172,10 +172,10 @@ optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
 #--------------------------------------------------------------------------------------
 
-train_model(model, train_loader, val_loader, num_epochs, device, save_path)
+train_model(model, train_loader, val_loader, num_epochs, device, save_path, save_log_path)
 
 # 验证阶段：计算每类 Dice Score
-class_dice_scores = evaluate_per_class_dice(model, val_loader, num_classes, device)
+class_dice_scores = evaluate_per_class_dice(model, test_loader, num_classes, device)
 print(f"Dice Scores per Class: {class_dice_scores}")
 print(f"LV (Class 1) Dice Score: {class_dice_scores[1]:.4f}")
 print(f"MYO (Class 2) Dice Score: {class_dice_scores[2]:.4f}")
