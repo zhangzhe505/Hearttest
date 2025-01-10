@@ -12,10 +12,31 @@ import time
 from tqdm import tqdm
 import os
 
-# 训练函数
-def train_model(model, train_loader, val_loader, num_epochs, device, save_path):
+import time
+import csv  # 用于保存 Dice Loss
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+import torch
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+if torch.cuda.is_available():
+    device = torch.device("cuda")  # 设置设备为 CUDA
+    gpu_index = torch.cuda.current_device()  # 获取当前 GPU 索引
+    gpu_name = torch.cuda.get_device_name(gpu_index)  # 获取 GPU 名称
+    print(f"Using GPU: {gpu_name} (Index: {gpu_index})")
+else:
+    device = torch.device("cpu")  # 设置设备为 CPU
+    print("CUDA is not available. Using CPU.")
+
+def train_model(model, train_loader, val_loader, num_epochs, device, save_path,save_log_path):
     train_dice_losses = []  # 记录训练 Dice Loss
     val_dice_losses = []  # 记录验证 Dice Loss
+
+    # 打开或创建 CSV 文件，写入表头
+    os.makedirs(os.path.dirname(save_log_path), exist_ok=True)
+    with open(save_log_path, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Epoch', 'Train_Dice_Loss', 'Val_Dice_Loss'])  # 写入表头
 
     for epoch in range(num_epochs):
         start_time = time.time()
@@ -61,11 +82,16 @@ def train_model(model, train_loader, val_loader, num_epochs, device, save_path):
         train_dice_losses.append(train_dice_loss / len(train_loader))
         val_dice_losses.append(val_dice_loss / len(val_loader))
 
+        # 保存当前 epoch 的 Dice Loss 到 CSV 文件
+        with open(save_log_path, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([epoch + 1, train_dice_losses[-1], val_dice_losses[-1]])
+
         # 打印当前 epoch 的结果
         epoch_time = time.time() - start_time
         print(f"Epoch [{epoch + 1}/{num_epochs}] - Train CE Loss: {train_ce_loss / len(train_loader):.4f}, "
               f"Train Dice Loss: {train_dice_losses[-1]:.4f}, "
-              f"Val Dice Loss: {val_dice_losses[-1]:.4f},"
+              f"Val Dice Loss: {val_dice_losses[-1]:.4f}, "
               f"Time: {epoch_time:.2f}s")
 
     # 保存模型
@@ -82,7 +108,6 @@ def train_model(model, train_loader, val_loader, num_epochs, device, save_path):
     plt.legend()
     plt.savefig("dice_loss_curve.png")
     print("Training curve saved as 'dice_loss_curve.png'.")
-
 
 # 验证阶段：计算每类 Dice Score
 def evaluate_per_class_dice(model, data_loader, n_classes, device):
@@ -112,16 +137,7 @@ def evaluate_per_class_dice(model, data_loader, n_classes, device):
 
 
 
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
-if torch.cuda.is_available():
-    device = torch.device("cuda")  # 设置设备为 CUDA
-    gpu_index = torch.cuda.current_device()  # 获取当前 GPU 索引
-    gpu_name = torch.cuda.get_device_name(gpu_index)  # 获取 GPU 名称
-    print(f"Using GPU: {gpu_name} (Index: {gpu_index})")
-else:
-    device = torch.device("cpu")  # 设置设备为 CPU
-    print("CUDA is not available. Using CPU.")
+#--------------------------------------------------------------------------------------
 
 learning_rate = 1e-3
 num_epochs = 1
@@ -137,6 +153,12 @@ train_loader, val_loader, test_loader = create_data(
 
 num_classes = 4
 input_channels = 1
+
+# eg:save_path = "unet_new_model.pth"
+# eg:save_log_path = "unet_new_log.csv"
+save_path = "unet_new_model.pth"
+save_log_path = "unet_new_log.csv"
+
 model = UNet(in_channels=input_channels, num_classes=num_classes).to(device)
 # model = ViT(img_size=512, patch_size=32, hidden_dim=768, num_classes=4)
 # model = SETR(num_classes=4, image_size=512, patch_size=512//32, dim=1024, depth = 24, heads = 16, mlp_dim = 2048).to(device)
@@ -147,9 +169,8 @@ cross_entropy_loss_fn = nn.CrossEntropyLoss()
 # 定义优化器
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
 
-# 开始训练
 
-save_path = "unet_new_model.pth"
+#--------------------------------------------------------------------------------------
 
 train_model(model, train_loader, val_loader, num_epochs, device, save_path)
 
