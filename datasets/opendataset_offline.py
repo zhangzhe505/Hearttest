@@ -114,10 +114,10 @@ class HeartDatasetProcessor:
                     new_file_name_ed = f"{External_code}_slice{i}_ed{ed}"
 
                     # Process the ground truth data
-                    slice_gt_data_ed = ProcessingUtils.resample_image(slice_gt_data_ed, self.matrix_size)
+                    slice_gt_data_ed = slice_gt_data_ed
 
                     # Process the raw data
-                    slice_data_ed = ProcessingUtils.resample_image(slice_data_ed, self.matrix_size)
+                    slice_data_ed = ProcessingUtils.normalize_array(slice_data_ed)
 
                     # Save the ED slice
                     np.save(os.path.join(new_path, new_gt_file_name_ed), slice_gt_data_ed)
@@ -129,10 +129,10 @@ class HeartDatasetProcessor:
                     new_file_name_es = f"{External_code}_slice{i}_es{es}"
 
                     # Process the ground truth data
-                    slice_gt_data_es = ProcessingUtils.resample_image(slice_gt_data_es, self.matrix_size)
+                    slice_gt_data_es = slice_gt_data_es
 
                     # Process the raw data
-                    slice_data_es = ProcessingUtils.resample_image(slice_data_es, self.matrix_size)
+                    slice_data_es = ProcessingUtils.normalize_array(slice_data_es)
 
                     # Save the ES slice
                     np.save(os.path.join(new_path, new_gt_file_name_es), slice_gt_data_es)
@@ -258,6 +258,34 @@ class ProcessingUtils:
         cropped_image = padded_image[crop_y:crop_y + target_height, crop_x:crop_x + target_width]
 
         return cropped_image
+    @staticmethod
+    def normalize_array(array, min_val=0, max_val=1):
+        """
+        将二维 NumPy 数组归一化到指定范围 [min_val, max_val]。
+
+        :param array: 输入的二维 NumPy 数组。
+        :param min_val: 归一化后的最小值，默认是 0。
+        :param max_val: 归一化后的最大值，默认是 1。
+        :return: 归一化后的二维 NumPy 数组。
+        """
+        # 检查输入是否是二维数组
+        if array.ndim != 2:
+            raise ValueError("输入数组必须是二维的")
+
+        # 计算输入数组的最小值和最大值
+        original_min = array.min()
+        original_max = array.max()
+
+        # 如果数组中所有值相同，直接返回数组
+        if original_min == original_max:
+            return np.full_like(array, min_val)
+
+        # 归一化公式
+        normalized_array = (array - original_min) / (original_max - original_min)
+        # 映射到 [min_val, max_val]
+        normalized_array = normalized_array * (max_val - min_val) + min_val
+
+        return normalized_array
     @staticmethod
     def resample_image(image, matrix_size, target_spacing=(1.25, 1.25)):
         """

@@ -17,6 +17,7 @@ import csv  # 用于保存 Dice Loss
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import torch
+import  torchio as tio
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 if torch.cuda.is_available():
@@ -134,7 +135,40 @@ def evaluate_per_class_dice(model, data_loader, n_classes, device):
     class_dice_scores /= len(data_loader)  # 平均每类的 Dice Score
     return class_dice_scores.cpu().numpy()
 
+training_transform = tio.Compose([
+    tio.ToCanonical(),
+    tio.Resample(1.25),
+    tio.Resize((256, 256, 1)),
+    tio.ZNormalization(masking_method=tio.ZNormalization.mean),
+    tio.RandomBlur(p=0.2),
+    tio.RandomFlip(p=0.5),
+    tio.RandomNoise(p=0.2),
+    tio.RandomBiasField(p=0.5),
+    tio.RandomMotion(p=0.2),
+    tio.RandomSpike(p=0.5),
+    tio.RandomGhosting(p=0.5),
+    tio.OneOf({
+        tio.RandomAffine(): 0.8,
+        tio.RandomElasticDeformation(max_displacement=(3, 3, 3),): 0.2,
+    }),
+    tio.OneHot(num_classes=4)
+])
 
+validation_transform = tio.Compose([
+    tio.ToCanonical(),
+    tio.Resample(1.25),
+    tio.Resize((256, 256, 1)),
+    tio.ZNormalization(masking_method=tio.ZNormalization.mean),
+    tio.OneHot(num_classes=4)
+])
+
+test_transform = tio.Compose([
+    tio.ToCanonical(),
+    tio.Resample(1.25),
+    tio.Resize((256, 256, 1)),
+    tio.ZNormalization(masking_method=tio.ZNormalization.mean),
+    tio.OneHot(num_classes=4)
+])
 
 
 #--------------------------------------------------------------------------------------
@@ -144,11 +178,14 @@ num_epochs = 100
 # Create data loaders
 train_loader, val_loader, test_loader = create_data(
     ["OpenDatasets", "OpenDatasets"],
-    '/data3/zhangzhe/data/OpenDataset',
+    '//Users/zhangzhe/PycharmProjects/data/OpenDataset',
     (256, 256),
     4,
     0.6,
     0.6,
+    training_transform=training_transform,
+    validation_transform=validation_transform,
+    test_transform=test_transform,
 )
 
 num_classes = 4

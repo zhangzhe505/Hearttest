@@ -1,11 +1,12 @@
 import os, sys; sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from torch.utils.data import DataLoader
+
 from opendataset import HeartDataset
 
 
-def create_data(data_config, root_path, matrix_size, batch_size, sampling_fraction, center_fraction):
+def create_data(data_config, root_path, matrix_size, batch_size, sampling_fraction, center_fraction,training_transform=None, validation_transform=None, test_transform=None):
     """
-    C                                                                                                                                                                              reate a dataset for training, testing and validation.
+    Create a dataset for training, testing and validation.
     :param data_config: [str, str], 1st for train/valid config, 2nd for test.
         Currently, only the OpenDatasets dataset is available.
     :param root_path: The absolute path to the dataset.
@@ -44,6 +45,7 @@ def create_data(data_config, root_path, matrix_size, batch_size, sampling_fracti
             matrix_size=(Nx, Ny),
             sampling_fraction=sampling_fraction,
             center_fraction=center_fraction,
+            transform=training_transform,
         )
 
         test_data = HeartDataset(
@@ -52,6 +54,7 @@ def create_data(data_config, root_path, matrix_size, batch_size, sampling_fracti
             matrix_size=(Nx, Ny),
             sampling_fraction=sampling_fraction,
             center_fraction=center_fraction,
+            transform=validation_transform,
         )
     if test_config == "OpenDatasets":
         val_data = HeartDataset(
@@ -60,6 +63,7 @@ def create_data(data_config, root_path, matrix_size, batch_size, sampling_fracti
             matrix_size=(Nx, Ny),
             sampling_fraction=sampling_fraction,
             center_fraction=center_fraction,
+            transform=test_transform,
         )
 
     train_loader = DataLoader(train_data, batch_size=bs_train, shuffle=True)

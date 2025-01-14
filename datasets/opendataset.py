@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from opendataset_offline import HeartDatasetProcessor
-
+import torchio as tio
 
 class HeartDataset(Dataset):
     """OpenDatasets
@@ -13,7 +13,8 @@ class HeartDataset(Dataset):
                  matrix_size,
                  sampling_fraction,
                  center_fraction,
-                 split='train'):
+                 split='train',
+                 transform=None):
         self.root_path = root_path
         self.matrix_size = matrix_size
         self.Nx = matrix_size[0]
@@ -21,6 +22,7 @@ class HeartDataset(Dataset):
         self.sampling_fraction = sampling_fraction
         self.center_fraction = center_fraction
         self.split = split.lower()
+        self.transform = transform
         self.data_files = []
         self.mask_files = []
         if self.split == 'train':
@@ -61,13 +63,29 @@ class HeartDataset(Dataset):
         data_mask = np.load(self.mask_files[index])
         # label = int(np.any(data_mask == 1))
 
-        if len(data.shape) == 2:
-            data = np.expand_dims(data, axis=0)
+        if len(data.shape) == 2:  # 如果是二维数据
+            data = np.expand_dims(data, axis=0)  # 添加通道维度 -> (1, height, width)
+            data = np.expand_dims(data, axis=-1)  # 添加深度维度 -> (1, height, width, depth)
+        if len(data_mask.shape) == 2:
+            data_mask = np.expand_dims(data_mask, axis=0)  # 添加通道维度 -> (1, height, width)
+            data_mask = np.expand_dims(data_mask, axis=-1)  # 添加深度维度 -> (1, height, width, depth)
+
+        subject = tio.Subject(
+            image=tio.ScalarImage(tensor=torch.from_numpy(data).float()),
+            label=tio.LabelMap(tensor=torch.from_numpy(data_mask).long())
+        )
+        if self.transform:
+            subject = self.transform(subject)
+
+        transformed_data = subject['image'].data.squeeze(-1)  # -> (channels, height, width)
+        transformed_mask = subject['label'].data.squeeze(-1)  # -> (num_classes, height, width)
+
+        return transformed_data, transformed_mask
         # data = np.repeat(data, 3, axis=0)
         # Convert numpy array to PyTorch Tensor
-        data = torch.from_numpy(data).to(torch.float)
-        data_mask = torch.from_numpy(data_mask).long()
-        return data, data_mask
+        # data = torch.from_numpy(data).to(torch.float)
+        # data_mask = torch.from_numpy(data_mask).long()
+        # return data, data_mask
 
     def __len__(self):
 
