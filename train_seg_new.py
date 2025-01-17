@@ -11,7 +11,7 @@ from loss.DiceLoss import DiceLoss
 import time
 from tqdm import tqdm
 import os
-
+from torchio import SubjectsDataset, SubjectsLoader
 import time
 import csv  # 用于保存 Dice Loss
 import matplotlib.pyplot as plt
@@ -45,9 +45,12 @@ def train_model(model, train_loader, val_loader, num_epochs, device, save_path,s
         train_dice_loss = 0.0
         train_ce_loss = 0.0
 
-        for images, masks in tqdm(train_loader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
-            images, masks = images.to(device), masks.to(device)  # 数据传到 GPU
-
+        for batch in tqdm(train_loader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
+            images = batch['image']['data']  # (B, C, H, W, D)
+            masks = batch['label']['data']  # (B, C, H, W, D)
+            # 根据需要进行 squeeze 或其他处理
+            images = images.squeeze(-1).to(device)  # 去掉深度维度
+            masks = masks.squeeze(-1).to(device)
             # 前向传播
             logits = model(images)  # logits 的形状为 [B, C, H, W]
 
@@ -72,9 +75,12 @@ def train_model(model, train_loader, val_loader, num_epochs, device, save_path,s
         model.eval()
         val_dice_loss = 0.0
         with torch.no_grad():
-            for images, masks in val_loader:
-                images, masks = images.to(device), masks.to(device)
-
+            for batch in tqdm(val_loader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
+                images = batch['image']['data']  # (B, C, H, W, D)
+                masks = batch['label']['data']  # (B, C, H, W, D)
+                # 根据需要进行 squeeze 或其他处理
+                images = images.squeeze(-1).to(device)  # 去掉深度维度
+                masks = masks.squeeze(-1).to(device)
                 logits = model(images)
                 dice_loss = dice_loss_fn(logits, masks, softmax=True)
                 val_dice_loss += dice_loss.item()
@@ -115,10 +121,14 @@ def evaluate_per_class_dice(model, data_loader, n_classes, device):
     model.eval()
     class_dice_scores = torch.zeros(n_classes, device=device)
 
-    with torch.no_grad():
-        for images, masks in data_loader:
-            images, masks = images.to(device), masks.to(device)
 
+    with torch.no_grad():
+        for batch in tqdm(data_loader):
+            images = batch['image']['data']  # (B, C, H, W, D)
+            masks = batch['label']['data']  # (B, C, H, W, D)
+            # 根据需要进行 squeeze 或其他处理
+            images = images.squeeze(-1).to(device)  # 去掉深度维度
+            masks = masks.squeeze(-1).to(device)
             logits = model(images)
             probabilities = torch.softmax(logits, dim=1)  # Apply softmax for probabilities
 
@@ -149,7 +159,7 @@ training_transform = tio.Compose([
     tio.RandomGhosting(p=0.5),
     tio.OneOf({
         tio.RandomAffine(): 0.8,
-        tio.RandomElasticDeformation(max_displacement=(3, 3, 3),): 0.2,
+        tio.RandomElasticDeformation(max_displacement=(2, 2, 2),): 0.2,
     }),
     tio.OneHot(num_classes=4)
 ])
@@ -178,7 +188,7 @@ num_epochs = 100
 # Create data loaders
 train_loader, val_loader, test_loader = create_data(
     ["OpenDatasets", "OpenDatasets"],
-    '//Users/zhangzhe/PycharmProjects/data/OpenDataset',
+    '/Users/zhangzhe/PycharmProjects/data/OpenDataset',
     (256, 256),
     4,
     0.6,

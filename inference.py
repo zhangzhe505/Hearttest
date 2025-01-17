@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 from torchvision.transforms.functional import to_pil_image
-
-
+import torchvision.transforms as transforms
+import  torchio as tio
 def visualize_segmentation(model, weights_path, image_path, class_colors, device='cpu'):
 
     model.load_state_dict(torch.load(weights_path, map_location=device))
@@ -14,10 +14,17 @@ def visualize_segmentation(model, weights_path, image_path, class_colors, device
     # 加载 .npy 格式的图像
     image = np.load(image_path)
     image = np.expand_dims(image, axis=0) #(C, H, W)
+
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Resize((256, 256)),
+
+    ])
+
     # 在加载数据时，将灰度图扩展为 RGB
     if len(image.shape) == 2:  # 如果是灰度图
         image = np.expand_dims(image, axis=0)  # 扩展为 (1, H, W)
-    image = np.repeat(image, 3, axis=0)  # 复制 3 次，扩展为 (3, H, W)
+    # image = np.repeat(image, 3, axis=0)  # 复制 3 次，扩展为 (3, H, W)
 
     image = torch.from_numpy(image).float().unsqueeze(0)  #(1, C, H, W)
     image = image.to(device)
@@ -75,16 +82,17 @@ def visualize_segmentation(model, weights_path, image_path, class_colors, device
     plt.show()
 # 示例调用
 if __name__ == "__main__":
-    from models.UNET_SEG import UNet
+    # from models.UNET_SEG import UNet
+    from models.UNET_new import UNet
     from models.ViT import ViT
     from models.SETR import SETR
 
     num_classes = 4
-    # model = UNet(input_channels=1, num_classes=num_classes)
-    model = ViT(img_size=512, patch_size=32, hidden_dim=768, num_classes=4)
+    model = UNet(in_channels=1, num_classes=num_classes)
+    # model = ViT(img_size=512, patch_size=32, hidden_dim=768, num_classes=4)
     # model = SETR(num_classes=32, image_size=512, patch_size=512//32, dim=1024, depth = 24, heads = 16, mlp_dim = 2048)
 
-    weights_path = "/Users/zhangzhe/PycharmProjects/gitproject/Hearttest/ViT_segmentation.pth"
+    weights_path = "/Users/zhangzhe/PycharmProjects/model_pth/unet_transfrom.pth"
 
     # 设置输入图像路径
     image_path = "/Users/zhangzhe/PycharmProjects/data/OpenDataset/train/A0S9V9_slice3_es9.npy"

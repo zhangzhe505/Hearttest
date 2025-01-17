@@ -1,6 +1,6 @@
 import os, sys; sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from torch.utils.data import DataLoader
-
+from torchio import SubjectsDataset, SubjectsLoader
 from opendataset import HeartDataset
 
 
@@ -66,9 +66,9 @@ def create_data(data_config, root_path, matrix_size, batch_size, sampling_fracti
             transform=test_transform,
         )
 
-    train_loader = DataLoader(train_data, batch_size=bs_train, shuffle=True)
-    valid_loader = DataLoader(val_data, batch_size=bs_train, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=bs_test, shuffle=True)
+    train_loader = SubjectsLoader(train_data, batch_size=bs_train, shuffle=True)
+    valid_loader = SubjectsLoader(val_data, batch_size=bs_train, shuffle=True)
+    test_loader = SubjectsLoader(test_data, batch_size=bs_test, shuffle=True)
 
     return train_loader, valid_loader, test_loader
 
