@@ -45,12 +45,9 @@ def train_model(model, train_loader, val_loader, num_epochs, device, save_path,s
         train_dice_loss = 0.0
         train_ce_loss = 0.0
 
-        for batch in tqdm(train_loader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
-            images = batch['image']['data']  # (B, C, H, W, D)
-            masks = batch['label']['data']  # (B, C, H, W, D)
-            # 根据需要进行 squeeze 或其他处理
-            images = images.squeeze(-1).to(device)  # 去掉深度维度
-            masks = masks.squeeze(-1).to(device)
+        for images, masks in tqdm(train_loader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
+            images, masks = images.to(device), masks.to(device)
+
             # 前向传播
             logits = model(images)  # logits 的形状为 [B, C, H, W]
 
@@ -75,12 +72,9 @@ def train_model(model, train_loader, val_loader, num_epochs, device, save_path,s
         model.eval()
         val_dice_loss = 0.0
         with torch.no_grad():
-            for batch in tqdm(val_loader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
-                images = batch['image']['data']  # (B, C, H, W, D)
-                masks = batch['label']['data']  # (B, C, H, W, D)
+            for images, masks in tqdm(val_loader, desc=f"Epoch {epoch + 1}/{num_epochs}"):
+                images, masks = images.to(device), masks.to(device)
                 # 根据需要进行 squeeze 或其他处理
-                images = images.squeeze(-1).to(device)  # 去掉深度维度
-                masks = masks.squeeze(-1).to(device)
                 logits = model(images)
                 dice_loss = dice_loss_fn(logits, masks, softmax=True)
                 val_dice_loss += dice_loss.item()
@@ -123,9 +117,8 @@ def evaluate_per_class_dice(model, data_loader, n_classes, device):
 
 
     with torch.no_grad():
-        for batch in tqdm(data_loader):
-            images = batch['image']['data']  # (B, C, H, W, D)
-            masks = batch['label']['data']  # (B, C, H, W, D)
+        for images, masks in tqdm(data_loader):
+            images, masks = images.to(device), masks.to(device)
             # 根据需要进行 squeeze 或其他处理
             images = images.squeeze(-1).to(device)  # 去掉深度维度
             masks = masks.squeeze(-1).to(device)
@@ -135,7 +128,7 @@ def evaluate_per_class_dice(model, data_loader, n_classes, device):
             # 累计每个类的 Dice Score
             for i in range(n_classes):
                 pred = probabilities[:, i]
-                target = (masks == i).float()
+                target = masks[:, i]
                 smooth = 1e-5
                 intersection = torch.sum(pred * target)
                 union = torch.sum(pred) + torch.sum(target)
@@ -145,21 +138,22 @@ def evaluate_per_class_dice(model, data_loader, n_classes, device):
     class_dice_scores /= len(data_loader)  # 平均每类的 Dice Score
     return class_dice_scores.cpu().numpy()
 
+
 training_transform = tio.Compose([
     tio.ToCanonical(),
     tio.Resample(1.25),
     tio.Resize((256, 256, 1)),
     tio.ZNormalization(masking_method=tio.ZNormalization.mean),
-    tio.RandomBlur(p=0.2),
-    tio.RandomFlip(p=0.5),
-    tio.RandomNoise(p=0.2),
-    tio.RandomBiasField(p=0.5),
-    tio.RandomMotion(p=0.2),
-    tio.RandomSpike(p=0.5),
-    tio.RandomGhosting(p=0.5),
     tio.OneOf({
-        tio.RandomAffine(): 0.8,
-        tio.RandomElasticDeformation(max_displacement=(2, 2, 2),): 0.2,
+        tio.RandomAffine():0.2,
+        tio.RandomElasticDeformation():0.2,
+    }),
+
+    tio.OneOf({
+        tio.RandomBiasField():0.25,
+        tio.RandomMotion():0.25,
+        tio.RandomGhosting():0.25,
+        tio.RandomSpike():0.25,
     }),
     tio.OneHot(num_classes=4)
 ])
